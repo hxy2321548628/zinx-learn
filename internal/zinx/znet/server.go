@@ -9,17 +9,18 @@ import (
 	"github.com/google/uuid"
 )
 
-// iServer 接口实现，定义一个Server服务类
+// Server 是 zitface.IServer 的默认实现，负责监听 TCP 连接并绑定业务路由。
 type Server struct {
-	Name      string //服务器的名称
-	IPVersion string //tcp4 or other
-	IP        string //服务绑定的IP地址
-	Port      int    //服务绑定的端口
+	Name      string          // Name 是用于日志展示的服务器名称。
+	IPVersion string          // IPVersion 指定网络类型，例如 tcp、tcp4 或 tcp6。
+	IP        string          // IP 是服务绑定的监听地址。
+	Port      int             // Port 是服务监听端口。
+	Router    zitface.IRouter // Router 是所有新连接共享的业务路由。
 }
 
 //============== 实现 ziface.IServer 里的全部接口方法 ========
 
-// 开启网络服务
+// Start 异步启动 TCP 监听，并为每个客户端连接创建独立的 Connection。
 func (this *Server) Start() {
 	fmt.Printf("[START] Server listenner at IP: %s, Port %d, is starting\n", this.IP, this.Port)
 
@@ -45,7 +46,7 @@ func (this *Server) Start() {
 
 			//3.2 TODO Server.Start() 设置服务器最大连接控制,如果超过最大连接，那么则关闭此新的连接
 
-			connhand := NewConntion(conn.(*net.TCPConn), uuid.NewString(), CallBackToClient)
+			connhand := NewConntion(conn.(*net.TCPConn), uuid.NewString(), this.Router)
 			go connhand.Start()
 
 		}
@@ -72,13 +73,20 @@ func (this *Server) Stop() {
 	//TODO  Server.Stop() 将其他需要清理的连接信息或者其他信息 也要一并停止或者清理
 }
 
-// 服务器实例化函数
+// AddRouter 注册服务器处理客户端请求时使用的路由。
+func (this *Server) AddRouter(router zitface.IRouter) {
+	this.Router = router
+	fmt.Println("Add Router succ! ")
+}
+
+// NewServer 根据配置创建服务器实例；调用 Serve 前应通过 AddRouter 注册业务路由。
 func NewServer(config *config.Config, name string) zitface.IServer {
 	s := &Server{
 		Name:      name,
 		IPVersion: config.Server.IPVersion,
 		IP:        config.Server.Host,
 		Port:      config.Server.Port,
+		Router:    nil,
 	}
 	return s
 }

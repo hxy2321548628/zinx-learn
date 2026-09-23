@@ -6,7 +6,7 @@ import (
 )
 
 func TestNewServer(t *testing.T) {
-	const name = "[zinx V0.1]"
+	const name = "[zinx V0.3]"
 	cfg := &config.Config{
 		Server: config.ServerConfig{
 			IPVersion: "tcp4",
@@ -31,5 +31,16 @@ func TestNewServer(t *testing.T) {
 	}
 	if server.Port != 7777 {
 		t.Errorf("Port = %d, want %d", server.Port, 7777)
+	}
+}
+
+func TestServerAddRouter(t *testing.T) {
+	server := &Server{}
+	router := &BaseRouter{}
+
+	server.AddRouter(router)
+
+	if server.Router != router {
+		t.Fatal("AddRouter() did not register the provided router")
 	}
 }

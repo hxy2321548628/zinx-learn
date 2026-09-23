@@ -1,36 +1,36 @@
 package znet
 
 import (
-	"errors"
 	"fmt"
 	"net"
 	"zinx-learn/internal/zinx/zitface"
 )
 
+// Connection 封装一个客户端 TCP 连接及其关联的业务路由。
 type Connection struct {
-	Conn         *net.TCPConn     //当前连接的socket TCP套接字
-	ConnID       string           //当前连接的ID 也可以称作为SessionID，ID全局唯一
-	isClosed     bool             //当前连接的关闭状态
-	ExitBuffChan chan bool        //告知该链接已经退出/停止的channel
-	handleAPI    zitface.HandFunc //该连接的处理方法api
+	Conn         *net.TCPConn    // Conn 是与客户端建立的底层 TCP 套接字。
+	ConnID       string          // ConnID 是连接的全局唯一标识，也可视为会话 ID。
+	isClosed     bool            // isClosed 标记连接是否已经关闭。
+	ExitBuffChan chan bool       // ExitBuffChan 用于通知 Start 结束阻塞并退出连接。
+	Router       zitface.IRouter // Router 处理从当前连接读取到的请求。
 }
 
-// 从当前连接获取原始的socket TCPConn
+// GetTCPConnection 返回底层 TCP 连接。
 func (this *Connection) GetTCPConnection() *net.TCPConn {
 	return this.Conn
 }
 
-// 获取当前连接ID
+// GetConnID 返回连接的全局唯一标识。
 func (this *Connection) GetConnID() string {
 	return this.ConnID
 }
 
-// 获取远程客户端地址信息
+// RemoteAddr 返回客户端的网络地址。
 func (this *Connection) RemoteAddr() net.Addr {
 	return this.Conn.RemoteAddr()
 }
 
-// 停止连接，结束当前连接状态M
+// Stop 关闭底层套接字，并通知 Start 结束等待。
 func (this *Connection) Stop() {
 	// 二次校验, 防止并发冲突
 	//1. 如果当前链接已经关闭
@@ -51,31 +51,37 @@ func (this *Connection) Stop() {
 	close(this.ExitBuffChan)
 }
 
-/* 处理conn读数据的Goroutine */
+// StartReader 持续读取客户端数据，将每次读取封装成 Request 后交给路由处理。
 func (this *Connection) StartReader() {
 	fmt.Println("Reader Goroutine is  running")
 	defer fmt.Println(this.RemoteAddr().String(), " conn reader exit!")
 	defer this.Stop()
 
 	for {
-		//读取我们最大的数据到buf中
+		// 当前版本尚未实现消息封包，先使用固定缓冲区演示一次读取对应一次请求。
 		buf := make([]byte, 512)
-		cnt, err := this.Conn.Read(buf)
+		n, err := this.Conn.Read(buf)
 		if err != nil {
 			fmt.Println("recv buf err ", err)
-			this.ExitBuffChan <- true
-			continue
-		}
-		//调用当前链接业务(这里执行的是当前conn的绑定的handle方法)
-		if err := this.handleAPI(this.Conn, buf, cnt); err != nil {
-			fmt.Println("connID ", this.ConnID, " handle is error")
-			this.ExitBuffChan <- true
 			return
 		}
+
+		// 只传递本次实际读取的 n 个字节，避免把缓冲区尾部的零值交给业务层。
+		req := Request{
+			conn: this,
+			data: buf[:n],
+		}
+
+		// 每个请求独立执行路由流程，三个处理阶段在同一 goroutine 内保持先后顺序。
+		go func(request zitface.IRequest) {
+			this.Router.PreHandle(request)
+			this.Router.Handle(request)
+			this.Router.PostHandle(request)
+		}(&req)
 	}
 }
 
-// 启动连接，让当前连接开始工作
+// Start 启动读协程，并阻塞到连接收到退出通知。
 func (this *Connection) Start() {
 
 	//开启处理该链接读取到客户端数据之后的请求业务
@@ -90,30 +96,18 @@ func (this *Connection) Start() {
 	}
 }
 
-// 创建连接的方法
+// NewConntion 创建连接对象，并将服务器注册的路由绑定到该连接。
 func NewConntion(
 	conn *net.TCPConn,
 	connID string,
-	callback_api zitface.HandFunc) zitface.IConnection {
+	router zitface.IRouter) zitface.IConnection {
 	c := &Connection{
 		Conn:         conn,
 		ConnID:       connID,
 		isClosed:     false,
-		handleAPI:    callback_api,
+		Router:       router,
 		ExitBuffChan: make(chan bool, 1),
 	}
 
 	return c
-}
-
-// 回显业务
-// ============== 定义当前客户端链接的handle api ===========
-func CallBackToClient(conn *net.TCPConn, data []byte, cnt int) error {
-	//回显业务
-	fmt.Println("[Conn Handle] CallBackToClient ... ")
-	if _, err := conn.Write(data[:cnt]); err != nil {
-		fmt.Println("write back buf err ", err)
-		return errors.New("CallBackToClient error")
-	}
-	return nil
 }
