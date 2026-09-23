@@ -1,11 +1,21 @@
 package znet
 
-import "testing"
+import (
+	"testing"
+	"zinx-learn/internal/config"
+)
 
 func TestNewServer(t *testing.T) {
 	const name = "[zinx V0.1]"
+	cfg := &config.Config{
+		Server: config.ServerConfig{
+			IPVersion: "tcp4",
+			Host:      "127.0.0.1",
+			Port:      7777,
+		},
+	}
 
-	server, ok := NewServer(name).(*Server)
+	server, ok := NewServer(cfg, name).(*Server)
 	if !ok {
 		t.Fatal("NewServer() did not return *Server")
 	}

@@ -3,7 +3,10 @@ package znet
 import (
 	"fmt"
 	"net"
+	"zinx-learn/internal/config"
 	"zinx-learn/internal/zinx/zitface"
+
+	"github.com/google/uuid"
 )
 
 // iServer 接口实现，定义一个Server服务类
@@ -42,28 +45,8 @@ func (this *Server) Start() {
 
 			//3.2 TODO Server.Start() 设置服务器最大连接控制,如果超过最大连接，那么则关闭此新的连接
 
-			//3.3 TODO Server.Start() 处理该新连接请求的 业务 方法， 此时应该有 handler 和 conn是绑定的
-
-			//我们这里暂时做一个最大512字节的回显服务
-			go func() {
-				//不断的循环从客户端获取数据
-				for {
-					buf := make([]byte, 512)
-					count, err := conn.Read(buf)
-					if err != nil {
-						fmt.Println("recv buf err ", err)
-						continue
-					}
-
-					fmt.Printf(" receive client msg : %s, count = %d\n", buf, count)
-
-					//回显
-					if _, err := conn.Write(buf[:count]); err != nil {
-						fmt.Println("write back buf err ", err)
-						continue
-					}
-				}
-			}()
+			connhand := NewConntion(conn.(*net.TCPConn), uuid.NewString(), CallBackToClient)
+			go connhand.Start()
 
 		}
 	}()
@@ -90,12 +73,12 @@ func (this *Server) Stop() {
 }
 
 // 服务器实例化函数
-func NewServer(name string) zitface.IServer {
+func NewServer(config *config.Config, name string) zitface.IServer {
 	s := &Server{
 		Name:      name,
-		IPVersion: "tcp4",
-		IP:        "127.0.0.1",
-		Port:      7777,
+		IPVersion: config.Server.IPVersion,
+		IP:        config.Server.Host,
+		Port:      config.Server.Port,
 	}
 	return s
 }

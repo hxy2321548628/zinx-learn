@@ -1,11 +1,28 @@
 GO ?= go
+BIN_DIR ?= bin
 
 .DEFAULT_GOAL := help
 
-.PHONY: help fmt fmt-check vet test test-race tidy tidy-check check clean
+.PHONY: help build build-server build-client run-server run-client fmt fmt-check vet test test-race tidy tidy-check check clean
 
 help: ## 显示可用命令
 	@awk 'BEGIN {FS = ":.*## "; printf "Usage: make <target>\n\nTargets:\n"} /^[a-zA-Z_-]+:.*## / {printf "  %-12s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+
+build: build-server build-client ## 构建服务端和客户端
+
+build-server: ## 构建服务端到 bin/server
+	@mkdir -p $(BIN_DIR)
+	$(GO) build -o $(BIN_DIR)/server ./cmd/server
+
+build-client: ## 构建客户端到 bin/client
+	@mkdir -p $(BIN_DIR)
+	$(GO) build -o $(BIN_DIR)/client ./cmd/client
+
+run-server: ## 运行服务端
+	$(GO) run ./cmd/server
+
+run-client: ## 运行客户端
+	$(GO) run ./cmd/client
 
 fmt: ## 格式化 Go 源文件
 	@find . -type f -name '*.go' -not -path './vendor/*' -exec gofmt -w {} +

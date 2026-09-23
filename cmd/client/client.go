@@ -2,17 +2,26 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net"
+	"strconv"
 	"time"
+	"zinx-learn/internal/config"
 )
 
 func main() {
+
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	fmt.Println("Client Test ... start")
 	//3秒之后发起测试请求，给服务端开启服务的机会
 	time.Sleep(3 * time.Second)
 
-	conn, err := net.Dial("tcp", "127.0.0.1:7777")
+	address := net.JoinHostPort(cfg.Server.Host, strconv.Itoa(cfg.Server.Port))
+	conn, err := net.Dial(cfg.Server.IPVersion, address)
 	if err != nil {
 		fmt.Println("client start err, exit!")
 		return
