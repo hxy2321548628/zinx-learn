@@ -22,7 +22,7 @@ type ServerConfig struct {
 	Host          string `mapstructure:"host"`          // Host 是服务器绑定的 IP 地址。
 	Port          int    `mapstructure:"port"`          // Port 是服务器监听端口。
 	MaxConn       int    `mapstructure:"maxconn"`       // MaxConn 是允许同时建立的最大连接数，供后续连接管理模块使用。
-	MaxPacketSize int    `mapstructure:"maxpacketsize"` // MaxPacketSize 是单个数据包的最大字节数，供后续封包模块使用。
+	MaxPacketSize uint32 `mapstructure:"maxpacketsize"` // MaxPacketSize 是单个数据包的最大字节数，供后续封包模块使用。
 }
 
 // Load 从 config/config.yaml 读取配置，并允许 APP_ 前缀的环境变量覆盖同名配置项。

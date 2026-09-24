@@ -5,4 +5,5 @@ package zitface
 type IRequest interface {
 	GetConnection() IConnection // GetConnection 返回产生该请求的客户端连接。
 	GetData() []byte            // GetData 返回本次从客户端读取到的有效数据。
+	GetMsgID() uint32
 }

@@ -8,36 +8,21 @@ import (
 	"zinx-learn/internal/zinx/znet"
 )
 
-// PingRouter 演示一个包含前置、核心和后置处理阶段的自定义路由。
+// ping test 自定义路由
 type PingRouter struct {
-	// 嵌入 BaseRouter 后，只需重写业务需要的处理阶段。
 	znet.BaseRouter
 }
 
-// PreHandle 在核心处理前向客户端发送提示消息。
-func (this *PingRouter) PreHandle(request zitface.IRequest) {
-	fmt.Println("Call Router PreHandle")
-	_, err := request.GetConnection().GetTCPConnection().Write([]byte("before ping ....\n"))
-	if err != nil {
-		fmt.Println("call back ping ping ping error")
-	}
-}
-
-// Handle 执行 ping 请求的核心响应逻辑。
+// Test Handle
 func (this *PingRouter) Handle(request zitface.IRequest) {
 	fmt.Println("Call PingRouter Handle")
-	_, err := request.GetConnection().GetTCPConnection().Write([]byte("ping...ping...ping\n"))
-	if err != nil {
-		fmt.Println("call back ping ping ping error")
-	}
-}
+	//先读取客户端的数据，再回写ping...ping...ping
+	fmt.Println("recv from client : msgId=", request.GetMsgID(), ", data=", string(request.GetData()))
 
-// PostHandle 在核心处理结束后向客户端发送收尾消息。
-func (this *PingRouter) PostHandle(request zitface.IRequest) {
-	fmt.Println("Call Router PostHandle")
-	_, err := request.GetConnection().GetTCPConnection().Write([]byte("After ping .....\n"))
+	//回写数据
+	err := request.GetConnection().SendMsg(1, []byte("ping...ping...ping"))
 	if err != nil {
-		fmt.Println("call back ping ping ping error")
+		fmt.Println(err)
 	}
 }
 

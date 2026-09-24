@@ -10,7 +10,7 @@ func TestRequest(t *testing.T) {
 	data := []byte("ping")
 	request := &Request{
 		conn: conn,
-		data: data,
+		msg:  NewMessage(1, data),
 	}
 
 	if request.GetConnection() != conn {
