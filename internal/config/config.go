@@ -24,19 +24,26 @@ type ServerConfig struct {
 	MaxConn          int    `mapstructure:"maxConn"`       // MaxConn 是允许同时建立的最大连接数，供后续连接管理模块使用。
 	MaxPacketSize    uint32 `mapstructure:"maxPacketSize"` // MaxPacketSize 是单个数据包的最大字节数，供后续封包模块使用。
 	WorkerPoolSize   uint32 `mapstructure:"workerPoolSize"`
-	MaxWorkerTaskLen uint32 `mapstructure:"MaxWorkerTaskLen"`
+	MaxWorkerTaskLen uint32 `mapstructure:"maxWorkerTaskLen"`
 }
+
+const defaultConfigPath = "config/config.yaml"
 
 // Load 从 config/config.yaml 读取配置，并允许 APP_ 前缀的环境变量覆盖同名配置项。
 // 例如 server.port 可以通过 APP_SERVER_PORT 覆盖。
 func Load() (*Config, error) {
+	return LoadFile(defaultConfigPath)
+}
+
+// LoadFile 从指定路径读取配置，主要便于测试和多环境启动。
+func LoadFile(path string) (*Config, error) {
 	// .env 仅作为本地开发的可选配置。
 	if err := godotenv.Load(); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return nil, fmt.Errorf("加载 .env 失败: %w", err)
 	}
 
 	v := viper.New()
-	v.SetConfigFile("config/config.yaml")
+	v.SetConfigFile(path)
 
 	if err := v.ReadInConfig(); err != nil {
 		return nil, fmt.Errorf("读取配置文件失败: %w", err)
@@ -52,9 +59,27 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("解析配置失败: %w", err)
 	}
 
-	if cfg.Server.Port <= 0 || cfg.Server.Port > 65535 {
-		return nil, fmt.Errorf("无效的服务端口: %d", cfg.Server.Port)
+	if err := cfg.validate(); err != nil {
+		return nil, err
 	}
 
 	return &cfg, nil
+}
+
+func (cfg Config) validate() error {
+	switch cfg.Server.IPVersion {
+	case "tcp", "tcp4", "tcp6":
+	default:
+		return fmt.Errorf("无效的网络类型: %q", cfg.Server.IPVersion)
+	}
+
+	if cfg.Server.Port <= 0 || cfg.Server.Port > 65535 {
+		return fmt.Errorf("无效的服务端口: %d", cfg.Server.Port)
+	}
+
+	if cfg.Server.WorkerPoolSize == 0 {
+		return errors.New("workerPoolSize 必须大于 0")
+	}
+
+	return nil
 }

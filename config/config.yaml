@@ -5,4 +5,4 @@ server:
   maxConn: 12000
   maxPacketSize: 4096
   workerPoolSize: 10
-  MaxWorkerTaskLen: 1024
+  maxWorkerTaskLen: 1024

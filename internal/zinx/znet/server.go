@@ -3,6 +3,7 @@ package znet
 import (
 	"fmt"
 	"net"
+	"strconv"
 	"zinx-learn/internal/config"
 	"zinx-learn/internal/zinx/zitface"
 )
@@ -29,7 +30,8 @@ func (sv *Server) Start() {
 		sv.msgHandler.StartWorkerPool()
 
 		// 1. 创建一个 tcp socket
-		listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", sv.IP, sv.Port))
+		address := net.JoinHostPort(sv.IP, strconv.Itoa(sv.Port))
+		listener, err := net.Listen(sv.IPVersion, address)
 		if err != nil {
 			fmt.Println("listen", sv.IPVersion, "err", err)
 			return
@@ -87,14 +89,14 @@ func (sv *Server) AddRouter(msgId uint32, router zitface.IRouter) {
 }
 
 // NewServer 根据配置创建服务器实例；调用 Serve 前应通过 AddRouter 注册业务路由。
-func NewServer(config *config.Config, name string) zitface.IServer {
+func NewServer(cfg config.ServerConfig, name string) zitface.IServer {
 	s := &Server{
 		Name:          name,
-		IPVersion:     config.Server.IPVersion,
-		IP:            config.Server.Host,
-		Port:          config.Server.Port,
-		msgHandler:    NewMsgHandler(config.Server.WorkerPoolSize, config.Server.MaxWorkerTaskLen),
-		MaxPacketSize: config.Server.MaxPacketSize,
+		IPVersion:     cfg.IPVersion,
+		IP:            cfg.Host,
+		Port:          cfg.Port,
+		msgHandler:    NewMsgHandler(cfg.WorkerPoolSize, cfg.MaxWorkerTaskLen),
+		MaxPacketSize: cfg.MaxPacketSize,
 	}
 	return s
 }

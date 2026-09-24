@@ -51,7 +51,7 @@ func main() {
 	}
 
 	//1 创建一个server 句柄 s
-	s := znet.NewServer(cfg, "[zinx V0.5]")
+	s := znet.NewServer(cfg.Server, "[zinx V0.5]")
 	log.Printf("服务监听地址：%s:%d", cfg.Server.Host, cfg.Server.Port)
 
 	// 将自定义路由注册到服务器，后续建立的连接都会使用该路由处理请求。
