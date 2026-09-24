@@ -10,12 +10,12 @@ import (
 
 // Connection 封装一个客户端 TCP 连接及其关联的业务路由。
 type Connection struct {
-	Conn          *net.TCPConn    // Conn 是与客户端建立的底层 TCP 套接字。
-	ConnID        string          // ConnID 是连接的全局唯一标识，也可视为会话 ID。
-	isClosed      bool            // isClosed 标记连接是否已经关闭。
-	ExitBuffChan  chan bool       // ExitBuffChan 用于通知 Start 结束阻塞并退出连接。
-	Router        zitface.IRouter // Router 处理从当前连接读取到的请求。
-	MaxPacketSize uint32          // MaxPacketSize 限制单个数据包的最大字节数。
+	Conn          *net.TCPConn       // Conn 是与客户端建立的底层 TCP 套接字。
+	ConnID        string             // ConnID 是连接的全局唯一标识，也可视为会话 ID。
+	isClosed      bool               // isClosed 标记连接是否已经关闭。
+	ExitBuffChan  chan bool          // ExitBuffChan 用于通知 Start 结束阻塞并退出连接。
+	MaxPacketSize uint32             // MaxPacketSize 限制单个数据包的最大字节数。
+	MsgHandler    zitface.IMsgHandle //当前Server的消息管理模块，用来绑定MsgId和对应的处理方法
 }
 
 // GetTCPConnection 返回底层 TCP 连接。
@@ -99,11 +99,7 @@ func (cn *Connection) StartReader() {
 		}
 
 		// 每个请求独立执行路由流程，三个处理阶段在同一 goroutine 内保持先后顺序。
-		go func(request zitface.IRequest) {
-			cn.Router.PreHandle(request)
-			cn.Router.Handle(request)
-			cn.Router.PostHandle(request)
-		}(&req)
+		go cn.MsgHandler.DoMsgHandler(&req)
 	}
 }
 
@@ -149,15 +145,15 @@ func (c *Connection) SendMsg(msgId uint32, data []byte) error {
 func NewConntion(
 	conn *net.TCPConn,
 	connID string,
-	router zitface.IRouter,
+	msgHandler zitface.IMsgHandle,
 	maxPacketSize uint32) zitface.IConnection {
 	c := &Connection{
 		Conn:          conn,
 		ConnID:        connID,
 		isClosed:      false,
-		Router:        router,
 		ExitBuffChan:  make(chan bool, 1),
 		MaxPacketSize: maxPacketSize,
+		MsgHandler:    msgHandler,
 	}
 
 	return c

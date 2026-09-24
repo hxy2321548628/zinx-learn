@@ -3,7 +3,7 @@ BIN_DIR ?= bin
 
 .DEFAULT_GOAL := help
 
-.PHONY: help build build-server build-client run-server run-client fmt fmt-check vet test test-race tidy tidy-check check clean
+.PHONY: help build build-server build-client build-client1 build-client2 run-server run-client fmt fmt-check vet test test-race tidy tidy-check check clean
 
 help: ## 显示可用命令
 	@awk 'BEGIN {FS = ":.*## "; printf "Usage: make <target>\n\nTargets:\n"} /^[a-zA-Z_-]+:.*## / {printf "  %-12s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -14,15 +14,30 @@ build-server: ## 构建服务端到 bin/server
 	@mkdir -p $(BIN_DIR)
 	$(GO) build -o $(BIN_DIR)/server ./cmd/server
 
-build-client: ## 构建客户端到 bin/client
+build-client: build-client1 build-client2 ## 构建全部客户端
+
+build-client1: ## 构建客户端 1 到 bin/client1
 	@mkdir -p $(BIN_DIR)
-	$(GO) build -o $(BIN_DIR)/client ./cmd/client
+	$(GO) build -o $(BIN_DIR)/client1 ./cmd/client1
+
+build-client2: ## 构建客户端 2 到 bin/client2
+	@mkdir -p $(BIN_DIR)
+	$(GO) build -o $(BIN_DIR)/client2 ./cmd/client2
 
 run-server: ## 运行服务端
 	$(GO) run ./cmd/server
 
-run-client: ## 运行客户端
-	$(GO) run ./cmd/client
+ifneq (,$(filter run-client,$(MAKECMDGOALS)))
+CLIENT_DIR := $(filter-out run-client,$(MAKECMDGOALS))
+.PHONY: $(CLIENT_DIR)
+$(CLIENT_DIR):
+	@:
+endif
+
+run-client: ## 运行 cmd 下的指定客户端目录（例如 make run-client client1）
+	@if [ "$(words $(CLIENT_DIR))" -ne 1 ]; then echo "用法: make run-client <客户端目录>"; exit 1; fi
+	@if [ ! -d "./cmd/$(CLIENT_DIR)" ]; then echo "客户端目录不存在: ./cmd/$(CLIENT_DIR)"; exit 1; fi
+	$(GO) run ./cmd/$(CLIENT_DIR)
 
 fmt: ## 格式化 Go 源文件
 	@find . -type f -name '*.go' -not -path './vendor/*' -exec gofmt -w {} +

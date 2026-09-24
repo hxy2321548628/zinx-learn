@@ -11,11 +11,11 @@ import (
 
 // Server 是 zitface.IServer 的默认实现，负责监听 TCP 连接并绑定业务路由。
 type Server struct {
-	Name          string          // Name 是用于日志展示的服务器名称。
-	IPVersion     string          // IPVersion 指定网络类型，例如 tcp、tcp4 或 tcp6。
-	IP            string          // IP 是服务绑定的监听地址。
-	Port          int             // Port 是服务监听端口。
-	Router        zitface.IRouter // Router 是所有新连接共享的业务路由。
+	Name          string             // Name 是用于日志展示的服务器名称。
+	IPVersion     string             // IPVersion 指定网络类型，例如 tcp、tcp4 或 tcp6。
+	IP            string             // IP 是服务绑定的监听地址。
+	Port          int                // Port 是服务监听端口。
+	msgHandler    zitface.IMsgHandle //当前Server的消息管理模块，用来绑定MsgId和对应的处理方法
 	MaxPacketSize uint32
 }
 
@@ -47,7 +47,7 @@ func (sv *Server) Start() {
 
 			//3.2 TODO Server.Start() 设置服务器最大连接控制,如果超过最大连接，那么则关闭此新的连接
 
-			connhand := NewConntion(conn.(*net.TCPConn), uuid.NewString(), sv.Router, sv.MaxPacketSize)
+			connhand := NewConntion(conn.(*net.TCPConn), uuid.NewString(), sv.msgHandler, sv.MaxPacketSize)
 			go connhand.Start()
 
 		}
@@ -75,8 +75,8 @@ func (sv *Server) Stop() {
 }
 
 // AddRouter 注册服务器处理客户端请求时使用的路由。
-func (sv *Server) AddRouter(router zitface.IRouter) {
-	sv.Router = router
+func (sv *Server) AddRouter(msgId uint32, router zitface.IRouter) {
+	sv.msgHandler.AddRouter(msgId, router)
 	fmt.Println("Add Router succ! ")
 }
 
@@ -87,7 +87,7 @@ func NewServer(config *config.Config, name string) zitface.IServer {
 		IPVersion:     config.Server.IPVersion,
 		IP:            config.Server.Host,
 		Port:          config.Server.Port,
-		Router:        nil,
+		msgHandler:    NewMsgHandler(),
 		MaxPacketSize: config.Server.MaxPacketSize,
 	}
 	return s

@@ -6,12 +6,13 @@ import (
 )
 
 func TestNewServer(t *testing.T) {
-	const name = "[zinx V0.3]"
+	const name = "[zinx V0.5]"
 	cfg := &config.Config{
 		Server: config.ServerConfig{
-			IPVersion: "tcp4",
-			Host:      "127.0.0.1",
-			Port:      7777,
+			IPVersion:     "tcp4",
+			Host:          "127.0.0.1",
+			Port:          7777,
+			MaxPacketSize: 4096,
 		},
 	}
 
@@ -32,15 +33,22 @@ func TestNewServer(t *testing.T) {
 	if server.Port != 7777 {
 		t.Errorf("Port = %d, want %d", server.Port, 7777)
 	}
+	if server.MaxPacketSize != 4096 {
+		t.Errorf("MaxPacketSize = %d, want %d", server.MaxPacketSize, 4096)
+	}
+	if server.msgHandler == nil {
+		t.Fatal("NewServer() did not initialize the message handler")
+	}
 }
 
 func TestServerAddRouter(t *testing.T) {
-	server := &Server{}
+	server := &Server{msgHandler: NewMsgHandler()}
 	router := &BaseRouter{}
 
-	server.AddRouter(router)
+	server.AddRouter(1, router)
 
-	if server.Router != router {
+	handler := server.msgHandler.(*MsgHandler)
+	if handler.Apis[1] != router {
 		t.Fatal("AddRouter() did not register the provided router")
 	}
 }

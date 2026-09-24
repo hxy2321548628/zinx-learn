@@ -6,11 +6,12 @@ import (
 )
 
 func TestRequest(t *testing.T) {
+	const msgID uint32 = 1
 	conn := &Connection{ConnID: "conn-1"}
 	data := []byte("ping")
 	request := &Request{
 		conn: conn,
-		msg:  NewMessage(1, data),
+		msg:  NewMessage(msgID, data),
 	}
 
 	if request.GetConnection() != conn {
@@ -18,6 +19,9 @@ func TestRequest(t *testing.T) {
 	}
 	if got := request.GetData(); !bytes.Equal(got, data) {
 		t.Fatalf("GetData() = %q, want %q", got, data)
+	}
+	if got := request.GetMsgID(); got != msgID {
+		t.Fatalf("GetMsgID() = %d, want %d", got, msgID)
 	}
 }
 
