@@ -16,6 +16,68 @@ type Connection struct {
 	ExitBuffChan  chan bool          // ExitBuffChan 用于通知 Start 结束阻塞并退出连接。
 	MaxPacketSize uint32             // MaxPacketSize 限制单个数据包的最大字节数。
 	MsgHandler    zitface.IMsgHandle //当前Server的消息管理模块，用来绑定MsgId和对应的处理方法
+	msgChan       chan []byte        //无缓冲管道，用于读、写两个goroutine之间的消息通信
+}
+
+// NewConntion 创建连接对象，并将服务器注册的路由绑定到该连接。
+func NewConntion(
+	conn *net.TCPConn,
+	connID string,
+	msgHandler zitface.IMsgHandle,
+	maxPacketSize uint32) zitface.IConnection {
+	c := &Connection{
+		Conn:          conn,
+		ConnID:        connID,
+		isClosed:      false,
+		ExitBuffChan:  make(chan bool, 1),
+		MaxPacketSize: maxPacketSize,
+		MsgHandler:    msgHandler,
+		msgChan:       make(chan []byte),
+	}
+
+	return c
+}
+
+/*
+写消息Goroutine， 用户将数据发送给客户端
+*/
+func (cn *Connection) StartWriter() {
+
+	fmt.Println("[Writer Goroutine is running]")
+	defer fmt.Println(cn.RemoteAddr().String(), "[conn Writer exit!]")
+
+	for {
+		select {
+		case data := <-cn.msgChan:
+			//有数据要写给客户端
+			if _, err := cn.Conn.Write(data); err != nil {
+				fmt.Println("Send Data error:, ", err, " Conn Writer exit")
+				return
+			}
+		case <-cn.ExitBuffChan:
+			//conn已经关闭
+			return
+		}
+	}
+}
+
+// 直接将Message数据发送数据给远程的TCP客户端
+func (cn *Connection) SendMsg(msgId uint32, data []byte) error {
+	if cn.isClosed == true {
+		return errors.New("Connection closed when send msg")
+	}
+	//将data封包，并且发送
+	dp := NewDataPack(cn.MaxPacketSize)
+	msg, err := dp.Pack(NewMessage(msgId, data))
+	if err != nil {
+		fmt.Println("Pack error msg id = ", msgId)
+		return errors.New("Pack error msg ")
+	}
+
+	//写回客户端
+	cn.msgChan <- msg //将之前直接回写给conn.Write的方法 改为 发送给Channel 供Writer读取
+
+	return nil
 }
 
 // GetTCPConnection 返回底层 TCP 连接。
@@ -108,6 +170,8 @@ func (cn *Connection) Start() {
 
 	//开启处理该链接读取到客户端数据之后的请求业务
 	go cn.StartReader()
+	//2 开启用于写回客户端数据流程的Goroutine
+	go cn.StartWriter()
 
 	for {
 		select {
@@ -116,45 +180,4 @@ func (cn *Connection) Start() {
 			return
 		}
 	}
-}
-
-// 直接将Message数据发送数据给远程的TCP客户端
-func (c *Connection) SendMsg(msgId uint32, data []byte) error {
-	if c.isClosed == true {
-		return errors.New("Connection closed when send msg")
-	}
-	//将data封包，并且发送
-	dp := NewDataPack(c.MaxPacketSize)
-	msg, err := dp.Pack(NewMessage(msgId, data))
-	if err != nil {
-		fmt.Println("Pack error msg id = ", msgId)
-		return errors.New("Pack error msg ")
-	}
-
-	//写回客户端
-	if _, err := c.Conn.Write(msg); err != nil {
-		fmt.Println("Write msg id ", msgId, " error ")
-		c.ExitBuffChan <- true
-		return errors.New("conn Write error")
-	}
-
-	return nil
-}
-
-// NewConntion 创建连接对象，并将服务器注册的路由绑定到该连接。
-func NewConntion(
-	conn *net.TCPConn,
-	connID string,
-	msgHandler zitface.IMsgHandle,
-	maxPacketSize uint32) zitface.IConnection {
-	c := &Connection{
-		Conn:          conn,
-		ConnID:        connID,
-		isClosed:      false,
-		ExitBuffChan:  make(chan bool, 1),
-		MaxPacketSize: maxPacketSize,
-		MsgHandler:    msgHandler,
-	}
-
-	return c
 }
