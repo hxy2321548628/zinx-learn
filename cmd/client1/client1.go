@@ -1,24 +1,24 @@
 package main
 
 import (
-	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net"
+	"os"
 	"strconv"
 	"time"
 	"zinx-learn/internal/config"
-	"zinx-learn/internal/zinx/znet"
+	"zinx-learn/internal/zinx/protocol"
 )
 
 func main() {
-
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatal(err)
+		slog.Error("加载配置失败", "error", err)
+		os.Exit(1)
 	}
 
-	fmt.Println("Client Test ... start")
+	slog.Info("客户端正在启动")
 
 	//3秒之后发起测试请求，给服务端开启服务的机会
 	time.Sleep(3 * time.Second)
@@ -26,48 +26,51 @@ func main() {
 	address := net.JoinHostPort(cfg.Server.Host, strconv.Itoa(cfg.Server.Port))
 	conn, err := net.Dial(cfg.Server.IPVersion, address)
 	if err != nil {
-		fmt.Println("client start err, exit!")
+		slog.Error("连接服务器失败", "error", err)
 		return
 	}
+	defer func() {
+		if err := conn.Close(); err != nil {
+			slog.Debug("关闭客户端连接失败", "error", err)
+		}
+	}()
+
+	packer := protocol.NewDataPack(cfg.Server.MaxPacketSize)
 
 	for {
-		//发封包message消息
-		dp := znet.NewDataPack(cfg.Server.MaxPacketSize)
-		msg, _ := dp.Pack(znet.NewMessage(0, []byte("Zinx V0.5 Client Test Message")))
-		_, err := conn.Write(msg)
+		message, err := packer.Pack(protocol.NewMessage(0, []byte("Zinx v0.8 Client Test Message")))
 		if err != nil {
-			fmt.Println("write error err ", err)
+			slog.Error("封装消息失败", "error", err)
+			return
+		}
+		_, err = conn.Write(message)
+		if err != nil {
+			slog.Error("发送消息失败", "error", err)
 			return
 		}
 
-		//先读出流中的head部分
-		headData := make([]byte, dp.GetHeadLen())
-		_, err = io.ReadFull(conn, headData) //ReadFull 会把msg填充满为止
+		header := make([]byte, packer.HeaderLen())
+		_, err = io.ReadFull(conn, header)
 		if err != nil {
-			fmt.Println("read head error")
-			break
-		}
-		//将headData字节流 拆包到msg中
-		msgHead, err := dp.Unpack(headData)
-		if err != nil {
-			fmt.Println("server unpack err:", err)
+			slog.Error("读取响应包头失败", "error", err)
 			return
 		}
 
-		if msgHead.GetDataLen() > 0 {
-			//msg 是有data数据的，需要再次读取data数据
-			msg := msgHead.(*znet.Message)
-			msg.Data = make([]byte, msg.GetDataLen())
+		messageID, dataLen, err := packer.UnpackHeader(header)
+		if err != nil {
+			slog.Error("解析响应包头失败", "error", err)
+			return
+		}
 
-			//根据dataLen从io中读取字节流
-			_, err := io.ReadFull(conn, msg.Data)
+		data := make([]byte, dataLen)
+		if dataLen > 0 {
+			_, err := io.ReadFull(conn, data)
 			if err != nil {
-				fmt.Println("server unpack data err:", err)
+				slog.Error("读取响应消息体失败", "error", err)
 				return
 			}
-
-			fmt.Println("==> Recv Msg: ID=", msg.Id, ", len=", msg.DataLen, ", data=", string(msg.Data))
 		}
+		slog.Info("收到响应", "message_id", messageID, "length", dataLen, "data", string(data))
 
 		time.Sleep(1 * time.Second)
 	}

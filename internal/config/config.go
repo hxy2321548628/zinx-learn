@@ -21,8 +21,8 @@ type ServerConfig struct {
 	IPVersion        string `mapstructure:"ipVersion"`     // IPVersion 指定网络类型，例如 tcp、tcp4 或 tcp6。
 	Host             string `mapstructure:"host"`          // Host 是服务器绑定的 IP 地址。
 	Port             int    `mapstructure:"port"`          // Port 是服务器监听端口。
-	MaxConn          int    `mapstructure:"maxConn"`       // MaxConn 是允许同时建立的最大连接数，供后续连接管理模块使用。
-	MaxPacketSize    uint32 `mapstructure:"maxPacketSize"` // MaxPacketSize 是单个数据包的最大字节数，供后续封包模块使用。
+	MaxConn          int    `mapstructure:"maxConn"`       // MaxConn 是允许同时建立的最大连接数。
+	MaxPacketSize    uint32 `mapstructure:"maxPacketSize"` // MaxPacketSize 是单个数据包的最大字节数。
 	WorkerPoolSize   uint32 `mapstructure:"workerPoolSize"`
 	MaxWorkerTaskLen uint32 `mapstructure:"maxWorkerTaskLen"`
 }
@@ -75,6 +75,14 @@ func (cfg Config) validate() error {
 
 	if cfg.Server.Port <= 0 || cfg.Server.Port > 65535 {
 		return fmt.Errorf("无效的服务端口: %d", cfg.Server.Port)
+	}
+
+	if cfg.Server.MaxConn <= 0 {
+		return errors.New("maxConn 必须大于 0")
+	}
+
+	if cfg.Server.MaxPacketSize == 0 {
+		return errors.New("maxPacketSize 必须大于 0")
 	}
 
 	if cfg.Server.WorkerPoolSize == 0 {
