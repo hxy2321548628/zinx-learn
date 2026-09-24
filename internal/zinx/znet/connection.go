@@ -11,7 +11,7 @@ import (
 // Connection 封装一个客户端 TCP 连接及其关联的业务路由。
 type Connection struct {
 	Conn          *net.TCPConn       // Conn 是与客户端建立的底层 TCP 套接字。
-	ConnID        string             // ConnID 是连接的全局唯一标识，也可视为会话 ID。
+	ConnID        uint32             // ConnID 是连接的全局唯一标识，也可视为会话 ID。
 	isClosed      bool               // isClosed 标记连接是否已经关闭。
 	ExitBuffChan  chan bool          // ExitBuffChan 用于通知 Start 结束阻塞并退出连接。
 	MaxPacketSize uint32             // MaxPacketSize 限制单个数据包的最大字节数。
@@ -22,7 +22,7 @@ type Connection struct {
 // NewConntion 创建连接对象，并将服务器注册的路由绑定到该连接。
 func NewConntion(
 	conn *net.TCPConn,
-	connID string,
+	connID uint32,
 	msgHandler zitface.IMsgHandle,
 	maxPacketSize uint32) zitface.IConnection {
 	c := &Connection{
@@ -86,7 +86,7 @@ func (cn *Connection) GetTCPConnection() *net.TCPConn {
 }
 
 // GetConnID 返回连接的全局唯一标识。
-func (cn *Connection) GetConnID() string {
+func (cn *Connection) GetConnID() uint32 {
 	return cn.ConnID
 }
 
@@ -160,8 +160,14 @@ func (cn *Connection) StartReader() {
 			msg:  msg,
 		}
 
-		// 每个请求独立执行路由流程，三个处理阶段在同一 goroutine 内保持先后顺序。
-		go cn.MsgHandler.DoMsgHandler(&req)
+		if cn.MsgHandler.GetWorkerPoolSize() > 0 {
+			cn.MsgHandler.SendMsgToTaskQueue(&req)
+		} else {
+			// 每个请求独立执行路由流程，三个处理阶段在同一 goroutine 内保持先后顺序。
+			go cn.MsgHandler.DoMsgHandler(&req)
+
+		}
+
 	}
 }
 

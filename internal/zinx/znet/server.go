@@ -5,8 +5,6 @@ import (
 	"net"
 	"zinx-learn/internal/config"
 	"zinx-learn/internal/zinx/zitface"
-
-	"github.com/google/uuid"
 )
 
 // Server 是 zitface.IServer 的默认实现，负责监听 TCP 连接并绑定业务路由。
@@ -27,6 +25,9 @@ func (sv *Server) Start() {
 
 	//开启一个go去做服务端Linster业务
 	go func() {
+		//0 启动worker工作池机制
+		sv.msgHandler.StartWorkerPool()
+
 		// 1. 创建一个 tcp socket
 		listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", sv.IP, sv.Port))
 		if err != nil {
@@ -35,6 +36,10 @@ func (sv *Server) Start() {
 		}
 		//已经监听成功
 		fmt.Println("Start Zinx server  ", sv.Name, " succ, now listenning...")
+
+		//TODO server.go 应该有一个自动生成ID的方法
+		var cid uint32
+		cid = 0
 
 		// 2. 监听连接处理业务
 		for {
@@ -47,7 +52,8 @@ func (sv *Server) Start() {
 
 			//3.2 TODO Server.Start() 设置服务器最大连接控制,如果超过最大连接，那么则关闭此新的连接
 
-			connhand := NewConntion(conn.(*net.TCPConn), uuid.NewString(), sv.msgHandler, sv.MaxPacketSize)
+			connhand := NewConntion(conn.(*net.TCPConn), cid, sv.msgHandler, sv.MaxPacketSize)
+			cid++
 			go connhand.Start()
 
 		}
@@ -87,7 +93,7 @@ func NewServer(config *config.Config, name string) zitface.IServer {
 		IPVersion:     config.Server.IPVersion,
 		IP:            config.Server.Host,
 		Port:          config.Server.Port,
-		msgHandler:    NewMsgHandler(),
+		msgHandler:    NewMsgHandler(config.Server.WorkerPoolSize, config.Server.MaxWorkerTaskLen),
 		MaxPacketSize: config.Server.MaxPacketSize,
 	}
 	return s

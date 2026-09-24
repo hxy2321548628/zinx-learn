@@ -1,6 +1,8 @@
 server:
-  ipversion: "tcp"
+  ipVersion: "tcp"
   host: "127.0.0.1"
   port: 7777
-  maxconn: 12000
-  maxpacketsize: 4096
+  maxConn: 12000
+  maxPacketSize: 4096
+  workerPoolSize: 10
+  MaxWorkerTaskLen: 1024

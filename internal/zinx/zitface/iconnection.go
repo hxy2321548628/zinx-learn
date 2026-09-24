@@ -9,7 +9,7 @@ import (
 type IConnection interface {
 	Start()                                  // Start 启动连接的读协程并等待连接退出。
 	Stop()                                   // Stop 关闭套接字并结束当前连接。
-	GetConnID() string                       // GetConnID 返回当前连接的全局唯一标识。
+	GetConnID() uint32                       // GetConnID 返回当前连接的全局唯一标识。
 	GetTCPConnection() *net.TCPConn          // GetTCPConnection 返回底层 TCP 连接，供当前阶段的路由直接收发数据。
 	SendMsg(msgId uint32, data []byte) error //直接将Message数据发送数据给远程的TCP客户端
 
