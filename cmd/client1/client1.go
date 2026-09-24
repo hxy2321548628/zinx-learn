@@ -38,7 +38,7 @@ func main() {
 	packer := protocol.NewDataPack(cfg.Server.MaxPacketSize)
 
 	for {
-		message, err := packer.Pack(protocol.NewMessage(0, []byte("Zinx v0.8 Client Test Message")))
+		message, err := packer.Pack(protocol.NewMessage(0, []byte("Zinx v0.8.1 Client Test Message")))
 		if err != nil {
 			slog.Error("封装消息失败", "error", err)
 			return

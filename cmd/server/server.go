@@ -21,7 +21,7 @@ type HelloHandler struct{}
 
 func (h *HelloHandler) Handle(request *routing.Request) {
 	slog.Info("收到消息", "message_id", request.MessageID(), "data", string(request.Data()))
-	if err := request.Responder().SendMessage(1, []byte("Hello Zinx Handler v0.8")); err != nil {
+	if err := request.Responder().SendMessage(1, []byte("Hello Zinx Handler v0.8.1")); err != nil {
 		slog.Error("回复消息失败", "error", err)
 	}
 }
@@ -33,7 +33,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	srv := server.New(cfg.Server, "zinx v0.8")
+	srv := server.New(cfg.Server, "zinx v0.8.1")
 	if err := srv.AddHandler(0, &PingHandler{}); err != nil {
 		slog.Error("注册处理器失败", "error", err)
 		os.Exit(1)
