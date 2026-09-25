@@ -18,13 +18,13 @@ type Config struct {
 
 // ServerConfig 描述 TCP 服务器的监听参数和资源限制。
 type ServerConfig struct {
-	IPVersion        string `mapstructure:"ipVersion"`     // IPVersion 指定网络类型，例如 tcp、tcp4 或 tcp6。
-	Host             string `mapstructure:"host"`          // Host 是服务器绑定的 IP 地址。
-	Port             int    `mapstructure:"port"`          // Port 是服务器监听端口。
-	MaxConn          int    `mapstructure:"maxConn"`       // MaxConn 是允许同时建立的最大连接数。
-	MaxPacketSize    uint32 `mapstructure:"maxPacketSize"` // MaxPacketSize 是单个数据包的最大字节数。
-	WorkerPoolSize   uint32 `mapstructure:"workerPoolSize"`
-	MaxWorkerTaskLen uint32 `mapstructure:"maxWorkerTaskLen"`
+	IPVersion        string `mapstructure:"ipVersion"`        // IPVersion 指定网络类型，例如 tcp、tcp4 或 tcp6。
+	Host             string `mapstructure:"host"`             // Host 是服务器绑定的 IP 地址。
+	Port             int    `mapstructure:"port"`             // Port 是服务器监听端口。
+	MaxConn          int    `mapstructure:"maxConn"`          // MaxConn 是允许同时建立的最大连接数。
+	MaxPacketSize    uint32 `mapstructure:"maxPacketSize"`    // MaxPacketSize 是单个数据包的最大字节数。
+	WorkerPoolSize   uint32 `mapstructure:"workerPoolSize"`   // WorkerPoolSize 是并行处理请求的 worker 数量。
+	MaxWorkerTaskLen uint32 `mapstructure:"maxWorkerTaskLen"` // MaxWorkerTaskLen 是每个 worker 队列允许缓存的任务数。
 }
 
 const defaultConfigPath = "config/config.yaml"
@@ -37,7 +37,7 @@ func Load() (*Config, error) {
 
 // LoadFile 从指定路径读取配置，主要便于测试和多环境启动。
 func LoadFile(path string) (*Config, error) {
-	// .env 仅作为本地开发的可选配置。
+	// .env 仅作为本地开发的可选配置，且不会覆盖进程中已经存在的环境变量。
 	if err := godotenv.Load(); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return nil, fmt.Errorf("加载 .env 失败: %w", err)
 	}
@@ -49,7 +49,7 @@ func LoadFile(path string) (*Config, error) {
 		return nil, fmt.Errorf("读取配置文件失败: %w", err)
 	}
 
-	// server.port -> APP_SERVER_PORT
+	// 环境变量优先于配置文件，例如 server.port -> APP_SERVER_PORT。
 	v.SetEnvPrefix("APP")
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()

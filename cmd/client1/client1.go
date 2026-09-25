@@ -20,7 +20,7 @@ func main() {
 
 	slog.Info("客户端正在启动")
 
-	//3秒之后发起测试请求，给服务端开启服务的机会
+	// 这是演示程序的简单等待，不是生产环境中的服务就绪检测机制。
 	time.Sleep(3 * time.Second)
 
 	address := net.JoinHostPort(cfg.Server.Host, strconv.Itoa(cfg.Server.Port))
@@ -37,8 +37,9 @@ func main() {
 
 	packer := protocol.NewDataPack(cfg.Server.MaxPacketSize)
 
+	// 演示客户端采用同步的“发送一条、读取一条”流程，便于观察完整通信过程。
 	for {
-		message, err := packer.Pack(protocol.NewMessage(0, []byte("Zinx v0.8.1 Client Test Message")))
+		message, err := packer.Pack(protocol.NewMessage(0, []byte("Zinx v0.9.0 Client Test Message")))
 		if err != nil {
 			slog.Error("封装消息失败", "error", err)
 			return
@@ -49,6 +50,7 @@ func main() {
 			return
 		}
 
+		// TCP 是字节流，需要先读满固定包头，再按其中的长度读满响应体。
 		header := make([]byte, packer.HeaderLen())
 		_, err = io.ReadFull(conn, header)
 		if err != nil {

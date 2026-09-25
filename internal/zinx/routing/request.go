@@ -1,6 +1,7 @@
 package routing
 
-// Request 将请求数据与回复能力关联起来。
+// Request 将已解码的数据、连接标识与回复能力关联起来。
+// 它只暴露路由层实际需要的信息，避免处理器依赖底层 net.Conn。
 type Request struct {
 	responder    Responder
 	connectionID uint32
@@ -9,6 +10,7 @@ type Request struct {
 }
 
 // NewRequest 创建一个已完整解码的请求。
+// 请求的生命周期由传给 Handler.Handle 的 context 控制，因此 Request 本身不保存 context。
 func NewRequest(responder Responder, connectionID, messageID uint32, data []byte) *Request {
 	return &Request{
 		responder:    responder,

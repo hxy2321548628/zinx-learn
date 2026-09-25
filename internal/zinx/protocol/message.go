@@ -8,6 +8,7 @@ type Message struct {
 }
 
 // NewMessage 创建一条消息。
+// data 不会被复制；调用方在消息处理完成前不应修改其底层字节切片。
 func NewMessage(id uint32, data []byte) *Message {
 	return &Message{id: id, data: data}
 }

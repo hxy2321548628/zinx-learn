@@ -9,6 +9,7 @@ import (
 func TestDataPackRoundTrip(t *testing.T) {
 	t.Parallel()
 
+	// 用“封包后再拆包”的往返测试同时验证包头字段和消息体布局。
 	packer := NewDataPack(1024)
 	want := NewMessage(7, []byte("hello"))
 	packet, err := packer.Pack(want)
@@ -50,6 +51,7 @@ func TestDataPackRejectsInvalidMessages(t *testing.T) {
 func TestDataPackRejectsOversizedHeader(t *testing.T) {
 	t.Parallel()
 
+	// 先用无限制的 packer 构造合法大包，再验证有限制的接收端会拒绝其包头。
 	unlimited := NewDataPack(0)
 	packet, err := unlimited.Pack(NewMessage(1, []byte("hello")))
 	if err != nil {

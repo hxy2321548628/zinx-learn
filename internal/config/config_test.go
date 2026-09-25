@@ -13,6 +13,7 @@ func TestConfigValidateResourceLimits(t *testing.T) {
 		WorkerPoolSize: 1,
 	}}
 
+	// 每个用例只破坏一项配置，便于定位是哪条资源限制没有被校验。
 	tests := []struct {
 		name   string
 		mutate func(*Config)
